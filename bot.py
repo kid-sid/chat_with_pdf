@@ -61,7 +61,21 @@ def load_vectorstore(user_dir):
 # Main Streamlit App
 def main():
     st.set_page_config(page_title="PDF Chatbot", layout="wide")
+    
+    # Sidebar Header
+    st.sidebar.header("📄 PDF Chatbot")
+    st.sidebar.info(
+        """
+        **How it works:**
+        - Upload a PDF document.
+        - Ask questions about the uploaded document.
+        - Get instant, accurate responses!
+        """
+    )
+    st.sidebar.image("https://via.placeholder.com/300x200?text=PDF+Chatbot", use_column_width=True)
+
     st.title("📄 Query your PDF")
+    st.markdown("### Upload a PDF and start asking questions!")
 
     # Create a unique directory for each user
     if "user_dir" not in st.session_state:
@@ -75,13 +89,15 @@ def main():
 
     # PDF Upload and Processing
     uploaded_files = st.file_uploader(
-        "Upload your PDF files here",
+        "Upload your PDF files here:",
         type=["pdf"],
         accept_multiple_files=False
     )
 
     if uploaded_files:
         with st.spinner("Processing your PDF..."):
+            st.sidebar.success("PDF uploaded successfully!")
+            
             # Save uploaded file temporarily
             pdf_path = os.path.join(user_dir, uploaded_files.name)
             with open(pdf_path, "wb") as f:
@@ -89,7 +105,17 @@ def main():
 
             # Extract and process text
             pdf_text = get_pdf_text([pdf_path])
+            
+            # Display file info
+            st.sidebar.markdown("#### Uploaded File Details:")
+            st.sidebar.markdown(f"📄 **Filename:** {uploaded_files.name}")
+            st.sidebar.markdown(f"📦 **Size:** {uploaded_files.size // 1024} KB")
+            
+            # Progress bar for text processing
+            progress_bar = st.progress(0)
             text_chunks = get_text_chunks(pdf_text)
+            for i in range(0, 101, 25):
+                progress_bar.progress(i)
 
             # Delete old FAISS index and create a new one
             shutil.rmtree(user_dir, ignore_errors=True)
@@ -97,9 +123,9 @@ def main():
             vectorstore = create_vectorstore(text_chunks, user_dir)
 
         if vectorstore:
-            st.success("PDF processing complete! You can now ask questions.")
+            st.success("🎉 PDF processing complete! You can now ask questions.")
         else:
-            st.warning("Could not process the uploaded PDF. Please try again with a different file.")
+            st.warning("⚠️ Could not process the uploaded PDF. Please try again with a different file.")
 
     # Ensure vectorstore is loaded
     if vectorstore:
@@ -127,12 +153,14 @@ def main():
                 st.session_state["chat_history"].append({"user": user_input, "bot": response["answer"]})
 
             # Display Chat History
+            chat_container = st.container()
             for chat in st.session_state["chat_history"]:
-                st.markdown(f"**You:** {chat['user']}")
-                st.markdown(f"**Lana:** {chat['bot']}")
+                with chat_container:
+                    st.markdown(f"**You:** {chat['user']}")
+                    st.markdown(f"**Lana:** {chat['bot']}")
 
     else:
-        st.warning("Please upload a PDF file to get started.")
+        st.warning("📂 Please upload a PDF file to get started.")
 
 # Run the app
 if __name__ == "__main__":
