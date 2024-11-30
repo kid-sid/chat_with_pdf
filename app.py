@@ -12,7 +12,7 @@ import uuid
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+# load_dotenv()
 # openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # Function to extract text from PDF
