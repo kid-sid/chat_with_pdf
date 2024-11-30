@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-openai_api_key = os.getenv("OPENAI_API_KEY")
+# openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # Function to extract text from PDF
 def get_pdf_text(pdf_docs):
