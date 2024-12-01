@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 # PDF Processing Functions
 def get_pdf_text(pdf_docs):
     text = ""
