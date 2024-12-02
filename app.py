@@ -167,7 +167,7 @@ def main():
                     st.markdown(f"**You:** {chat['user']}")
                     st.markdown(f"**Bot:** {chat['bot']}")
         else:
-            st.info("Upload a PDF to start asking questions.")
+            st.info("Upload a PDF to start asking questions.") 
 
 
 # Run the app
