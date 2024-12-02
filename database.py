@@ -14,6 +14,18 @@ def init_db():
             password TEXT NOT NULL
         )
     """)
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_queries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        FOREIGN KEY(username) REFERENCES users(username)
+    )
+    ''')
+
+
     conn.commit()
     conn.close()
 
@@ -40,3 +52,29 @@ def login_user(username, password):
     if user and bcrypt.checkpw(password.encode('utf-8'), user[0]):
         return True
     return False
+
+def save_user_query(username, question, answer):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+    INSERT INTO user_queries (username, question, answer)
+    VALUES (?, ?, ?)
+    ''', (username, question, answer))
+    
+    conn.commit()
+    conn.close()
+
+def get_user_queries(username):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+    SELECT question, answer FROM user_queries
+    WHERE username = ?
+    ''', (username,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+

@@ -9,8 +9,9 @@ from langchain.vectorstores import FAISS
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from database import init_db, signup_user, login_user  # Import database functions
+from database import init_db, save_user_query, signup_user, login_user  # Import database functions
 from dotenv import load_dotenv
+
 
 load_dotenv()
 
@@ -53,6 +54,8 @@ def load_vectorstore(user_dir):
     return None
 
 # Main Streamlit App
+from database import get_user_queries  # Import the function
+
 def main():
     st.set_page_config(page_title="PDF Chatbot with Authentication", layout="wide")
     st.sidebar.title("PDF Chatbot")
@@ -60,17 +63,13 @@ def main():
     # Initialize database
     init_db()
 
-    # Initialize session state keys
+    # Initialize session state variables
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
-    if "username" not in st.session_state:
-        st.session_state["username"] = None
-    if "chat_history" not in st.session_state:
-        st.session_state["chat_history"] = []
 
-    # Authentication logic
     if not st.session_state["logged_in"]:
         st.sidebar.subheader("Login / Signup")
+
         option = st.sidebar.radio("Select an option:", ["Login", "Signup"])
 
         username = st.sidebar.text_input("Username")
@@ -94,15 +93,28 @@ def main():
     else:
         st.sidebar.success(f"Logged in as {st.session_state['username']}")
 
-        # Logout option
-        if st.sidebar.button("Logout"):
-            st.session_state["logged_in"] = False
-            st.session_state["username"] = None
-            st.experimental_rerun()
+    # Logout option
+    if st.sidebar.button("Logout"):
+        st.session_state["logged_in"] = False
+        st.session_state.pop("username", None)
+        st.experimental_rerun()
 
-    # Main application logic (only accessible when logged in)
+    # Main app logic after login
     if st.session_state["logged_in"]:
         st.title("📄 Query your PDF")
+
+        # Query history button and functionality
+        if st.button("Show Query History"):
+            user_queries = get_user_queries(st.session_state["username"])
+            if user_queries:
+                st.markdown("### Previous Queries")
+                for question, answer in user_queries:
+                    st.markdown(f"**Question:** {question}")
+                    st.markdown(f"**Answer:** {answer}")
+            else:
+                st.info("No queries found.")
+
+        # Rest of your chatbot functionality
         uploaded_files = st.file_uploader("Upload your PDF:", type=["pdf"])
 
         user_dir = os.path.join("faiss_indices", st.session_state["username"])
@@ -130,6 +142,9 @@ def main():
                 llm=llm, retriever=vectorstore.as_retriever(), memory=memory
             )
 
+            if "chat_history" not in st.session_state:
+                st.session_state["chat_history"] = []
+
             user_input = st.text_input("Ask a question about the uploaded PDF:", key="user_input")
 
             if user_input:
@@ -138,14 +153,19 @@ def main():
                         "question": user_input,
                         "chat_history": st.session_state["chat_history"]
                     })
-                    st.session_state["chat_history"].append({"user": user_input, "bot": response["answer"]})
+                    answer = response["answer"]
+
+                    # Save the question and answer to the database
+                    save_user_query(st.session_state["username"], user_input, answer)
+
+                    # Update chat history
+                    st.session_state["chat_history"].append({"user": user_input, "bot": answer})
 
                 # Display chat history
                 st.markdown("### Chat History:")
                 for chat in st.session_state["chat_history"]:
                     st.markdown(f"**You:** {chat['user']}")
                     st.markdown(f"**Bot:** {chat['bot']}")
-
         else:
             st.info("Upload a PDF to start asking questions.")
 
