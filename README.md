@@ -6,4 +6,4 @@ This code contains RAG architecture which takes your PDF texts as the context an
 
 ## **Overview of the architecture**
 
-![RAG Architecture]([url_of_image](https://github.com/kid-sid/chat_with_pdf/blob/main/Images/RAG%20Architecture.PNG))
+![RAG Architecture](https://github.com/user-attachments/assets/2ef6b915-27d4-4fc0-9d62-6cdce6afd053)
