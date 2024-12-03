@@ -16,10 +16,10 @@ Generation part is used for text completion by using the next word prediction ca
 
 All the RAG apps follow more or less same type of architure as above diagram.
 
-    Here we are uploading a PDF as the step one.
-    Then the contents/texts of the PDF are getting extracted from it as the second step.
-    LLMs can't take all the texts at once due to their context length limitation, so we created chunks out of those text.
-    Then we created vectors of those chunks and stored it in a vector database, in our case it is FAISS.
+Here we are uploading a PDF as the step one.
+Then the contents/texts of the PDF are getting extracted from it as the second step.
+LLMs can't take all the texts at once due to their context length limitation, so we created chunks out of those text.
+Then we created vectors of those chunks and stored it in a vector database, in our case it is FAISS.
 
-    Then whenever someone asks a question, LLM answers considering vectors stored in the database as the context.
+Then whenever someone asks a question, LLM answers considering vectors stored in the database as the context.
     
