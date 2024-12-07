@@ -23,7 +23,14 @@ Then we created vectors of those chunks and stored it in a vector database, in o
 
 Then whenever someone asks a question, LLM answers considering vectors stored in the database as the context.
 
+**Credentials screenshot:**
+
 ![Signup/Login page](https://github.com/user-attachments/assets/f56dd4fe-a9e5-4367-9d3b-02ced90dc5a3)
+
+**Question answering interface:**
+
+![Chatbot interface](https://github.com/user-attachments/assets/0bb10db0-16a4-4e4b-b905-820f6ee1b463)
+
 
 
 
