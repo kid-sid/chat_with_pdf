@@ -27,9 +27,15 @@ Then whenever someone asks a question, LLM answers considering vectors stored in
 
 ![Signup/Login page](https://github.com/user-attachments/assets/f56dd4fe-a9e5-4367-9d3b-02ced90dc5a3)
 
+New users need to Signup and then do a login.
+
 **Question answering interface:**
 
 ![Chatbot interface](https://github.com/user-attachments/assets/0bb10db0-16a4-4e4b-b905-820f6ee1b463)
+
+Show Query History option will show all the previous queries asked by a user and their answers.
+We can use Browse File option for uploading the PDF.
+Below text box is for adding your quer and press enter to get the response.
 
 
 
