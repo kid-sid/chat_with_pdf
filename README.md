@@ -22,4 +22,11 @@ LLMs can't take all the texts at once due to their context length limitation, so
 Then we created vectors of those chunks and stored it in a vector database, in our case it is FAISS.
 
 Then whenever someone asks a question, LLM answers considering vectors stored in the database as the context.
-    
+
+![Signup/Login page](https://github.com/user-attachments/assets/f56dd4fe-a9e5-4367-9d3b-02ced90dc5a3)
+
+
+
+
+
+
