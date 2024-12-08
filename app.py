@@ -9,12 +9,11 @@ from langchain.vectorstores import FAISS
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from database import init_db, save_user_query, signup_user, login_user  # Import database functions
+from database import init_db, save_user_query, signup_user, login_user, get_api_key, save_api_key, get_user_queries  # Import database functions
 from dotenv import load_dotenv
-
+import openai, re
 
 load_dotenv()
-
 
 # PDF Processing Functions
 def get_pdf_text(pdf_docs):
@@ -36,26 +35,40 @@ def get_text_chunks(text):
     )
     return text_splitter.split_text(text)
 
-def create_vectorstore(text_chunks, user_dir):
+def create_vectorstore(text_chunks, user_dir, openai_api_key):
     if not text_chunks:
         st.error("No valid text extracted from the uploaded PDF.")
         return None
-    embeddings = OpenAIEmbeddings()
+    embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     vectorstore.save_local(user_dir)
     return vectorstore
 
-def load_vectorstore(user_dir):
+def load_vectorstore(user_dir, openai_api_key):
     if os.path.exists(os.path.join(user_dir, "index.faiss")):
         try:
-            return FAISS.load_local(user_dir, OpenAIEmbeddings())
+            return FAISS.load_local(user_dir, OpenAIEmbeddings(openai_api_key=openai_api_key))
         except Exception as e:
             st.error(f"Error loading FAISS index: {e}")
     return None
 
-# Main Streamlit App
-from database import get_user_queries  # Import the function
 
+def validate_api_key(api_key):
+    
+    # Define the regex pattern for the API key validation
+    pattern = r"^sk-.{161}$" 
+    
+    # Check if the provided API key matches the pattern
+    if re.match(pattern, api_key):
+        print("API Key is valid!")
+        return True
+    else:
+        print("Invalid API Key!")
+        return False
+
+
+
+# Main Streamlit App
 def main():
     st.set_page_config(page_title="PDF Chatbot with Authentication", layout="wide")
     st.sidebar.title("PDF Chatbot")
@@ -74,22 +87,37 @@ def main():
 
         username = st.sidebar.text_input("Username")
         password = st.sidebar.text_input("Password", type="password")
+        openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 
+        # Signup logic
         if option == "Signup":
             if st.sidebar.button("Signup"):
-                if signup_user(username, password):
-                    st.success("Signup successful! Please login.")
+                if validate_api_key(openai_api_key):
+                    if signup_user(username, password):
+                        save_api_key(username, openai_api_key)  # Save API key during signup
+                        st.success("Signup successful! Please login.")
+                    else:
+                        st.error("Username already exists. Please try a different one.")
                 else:
-                    st.error("Username already exists. Please try a different one.")
+                    st.warning("Invalid API Key. Please provide a valid OpenAI API Key.")
 
+        # Login logic
         elif option == "Login":
             if st.sidebar.button("Login"):
-                if login_user(username, password):
-                    st.session_state["logged_in"] = True
-                    st.session_state["username"] = username
-                    st.success(f"Welcome, {username}!")
+                if validate_api_key(openai_api_key):
+                    if login_user(username, password, openai_api_key):  # Pass API key here
+                        st.session_state["logged_in"] = True
+                        st.session_state["username"] = username
+                        st.success(f"Welcome, {username}!")
+                    else:
+                        st.error("Invalid username, password, or API key.")
                 else:
-                    st.error("Invalid username or password.")
+                    st.warning("Invalid API Key. Please provide a valid OpenAI API Key.")
+
+            # Optional: Prompt for API Key if not provided
+            if not openai_api_key:
+                st.warning("Please provide your OpenAI API Key to log in.")
+
     else:
         st.sidebar.success(f"Logged in as {st.session_state['username']}")
 
@@ -102,6 +130,17 @@ def main():
     # Main app logic after login
     if st.session_state["logged_in"]:
         st.title("📄 Query your PDF")
+
+        # Fetch the stored OpenAI API key
+        openai_api_key = get_api_key(st.session_state["username"])
+        if not openai_api_key:
+            st.error("No OpenAI API key found. Please log out and provide your API key during login.")
+            return
+
+        # Ensure valid API key is entered before continuing
+        if openai_api_key.strip() == "":
+            st.error("OpenAI API Key is required to proceed.")
+            return
 
         # Query history button and functionality
         if st.button("Show Query History"):
@@ -120,7 +159,7 @@ def main():
         user_dir = os.path.join("faiss_indices", st.session_state["username"])
         os.makedirs(user_dir, exist_ok=True)
 
-        vectorstore = load_vectorstore(user_dir)
+        vectorstore = load_vectorstore(user_dir, openai_api_key)
 
         if uploaded_files:
             with st.spinner("Processing your PDF..."):
@@ -129,14 +168,14 @@ def main():
 
                 shutil.rmtree(user_dir, ignore_errors=True)
                 os.makedirs(user_dir, exist_ok=True)
-                vectorstore = create_vectorstore(text_chunks, user_dir)
+                vectorstore = create_vectorstore(text_chunks, user_dir, openai_api_key)
 
             if vectorstore:
-                st.success("🎉 PDF processed! Ask questions below.")
+                st.success("PDF processed! Ask questions below.")
 
         # Ensure vectorstore is loaded
         if vectorstore:
-            llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+            llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key=openai_api_key)
             memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
             conversation_chain = ConversationalRetrievalChain.from_llm(
                 llm=llm, retriever=vectorstore.as_retriever(), memory=memory
@@ -167,8 +206,7 @@ def main():
                     st.markdown(f"**You:** {chat['user']}")
                     st.markdown(f"**Bot:** {chat['bot']}")
         else:
-            st.info("Upload a PDF to start asking questions.") 
-
+            st.info("Upload a PDF to start asking questions.")
 
 # Run the app
 if __name__ == "__main__":
