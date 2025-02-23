@@ -15,7 +15,7 @@ import openai, re
 
 load_dotenv()
 
-# PDF Processing Functions
+# PDF Processing
 def get_pdf_text(pdf_docs):
     text = ""
     for pdf in pdf_docs:
@@ -27,15 +27,17 @@ def get_pdf_text(pdf_docs):
             st.error(f"Error reading PDF: {e}")
     return text
 
+# chunking
 def get_text_chunks(text):
     if not text.strip():
         return []
     text_splitter = CharacterTextSplitter(
-        separator="\n", chunk_size=1000, chunk_overlap=200, length_function=len
+        separator="\n", chunk_size=1000, chunk_overlap=200, length_function=len # used sliding window chunking strategy
     )
     return text_splitter.split_text(text)
 
-def create_vectorstore(text_chunks, user_dir, openai_api_key):
+# vectorizing text chunks
+def create_vectorstore(text_chunks, user_dir, openai_api_key):   
     if not text_chunks:
         st.error("No valid text extracted from the uploaded PDF.")
         return None
@@ -44,6 +46,7 @@ def create_vectorstore(text_chunks, user_dir, openai_api_key):
     vectorstore.save_local(user_dir)
     return vectorstore
 
+# 
 def load_vectorstore(user_dir, openai_api_key):
     if os.path.exists(os.path.join(user_dir, "index.faiss")):
         try:
@@ -68,7 +71,7 @@ def validate_api_key(api_key):
 
 
 
-# Main Streamlit App
+# Main App
 def main():
     st.set_page_config(page_title="PDF Chatbot with Authentication", layout="wide")
     st.sidebar.title("PDF Chatbot")
@@ -76,7 +79,7 @@ def main():
     # Initialize database
     init_db()
 
-    # Initialize session state variables
+    # initializing session state variables
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
 
@@ -89,23 +92,23 @@ def main():
         password = st.sidebar.text_input("Password", type="password")
         openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 
-        # Signup logic
+        # signup for new users
         if option == "Signup":
             if st.sidebar.button("Signup"):
                 if validate_api_key(openai_api_key):
                     if signup_user(username, password):
-                        save_api_key(username, openai_api_key)  # Save API key during signup
+                        save_api_key(username, openai_api_key)  # saving API key during signup (optional)
                         st.success("Signup successful! Please login.")
                     else:
                         st.error("Username already exists. Please try a different one.")
                 else:
                     st.warning("Invalid API Key. Please provide a valid OpenAI API Key.")
 
-        # Login logic
+        # login for existing users
         elif option == "Login":
             if st.sidebar.button("Login"):
                 if validate_api_key(openai_api_key):
-                    if login_user(username, password, openai_api_key):  # Pass API key here
+                    if login_user(username, password, openai_api_key):  # passing API key here
                         st.session_state["logged_in"] = True
                         st.session_state["username"] = username
                         st.success(f"Welcome, {username}!")
@@ -114,7 +117,7 @@ def main():
                 else:
                     st.warning("Invalid API Key. Please provide a valid OpenAI API Key.")
 
-            # Optional: Prompt for API Key if not provided
+            # optional: prompt for API Key if not provided
             if not openai_api_key:
                 st.warning("Please provide your OpenAI API Key to log in.")
 
@@ -127,22 +130,22 @@ def main():
         st.session_state.pop("username", None)
         st.experimental_rerun()
 
-    # Main app logic after login
+    # Main app after login
     if st.session_state["logged_in"]:
         st.title("📄 Query your PDF")
 
-        # Fetch the stored OpenAI API key
+        # using the stored OpenAI API key
         openai_api_key = get_api_key(st.session_state["username"])
         if not openai_api_key:
             st.error("No OpenAI API key found. Please log out and provide your API key during login.")
             return
 
-        # Ensure valid API key is entered before continuing
+        # ensuring valid API key is entered before continuing
         if openai_api_key.strip() == "":
             st.error("OpenAI API Key is required to proceed.")
             return
 
-        # Query history button and functionality
+        # query history button and functionality: stores the user queries and response in the database
         if st.button("Show Query History"):
             user_queries = get_user_queries(st.session_state["username"])
             if user_queries:
@@ -153,7 +156,7 @@ def main():
             else:
                 st.info("No queries found.")
 
-        # Rest of your chatbot functionality
+        # rest of the chatbot functionality
         uploaded_files = st.file_uploader("Upload your PDF:", type=["pdf"])
 
         user_dir = os.path.join("faiss_indices", st.session_state["username"])
@@ -173,7 +176,7 @@ def main():
             if vectorstore:
                 st.success("PDF processed! Ask questions below.")
 
-        # Ensure vectorstore is loaded
+        # ensuring vectorstore is loaded
         if vectorstore:
             llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key=openai_api_key)
             memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
@@ -194,13 +197,13 @@ def main():
                     })
                     answer = response["answer"]
 
-                    # Save the question and answer to the database
+                    # saving the question and answer to the database
                     save_user_query(st.session_state["username"], user_input, answer)
 
-                    # Update chat history
+                    # updating chat history
                     st.session_state["chat_history"].append({"user": user_input, "bot": answer})
 
-                # Display chat history
+                # shows chat history
                 st.markdown("### Chat History:")
                 for chat in st.session_state["chat_history"]:
                     st.markdown(f"**You:** {chat['user']}")
@@ -208,6 +211,6 @@ def main():
         else:
             st.info("Upload a PDF to start asking questions.")
 
-# Run the app
+# start the app
 if __name__ == "__main__":
     main()
